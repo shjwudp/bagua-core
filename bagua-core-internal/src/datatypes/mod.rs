@@ -573,6 +573,10 @@ impl BaguaTensor {
         self.inner.read().raw.num_elem_allocated
     }
 
+    pub fn bytes(&self) -> usize {
+        self.inner.read().raw.num_elem * self.inner.read().raw.dtype.bytes()
+    }
+
     pub fn dtype(&self) -> String {
         format!("{:?}", self.inner.read().raw.dtype)
     }
@@ -824,6 +828,13 @@ impl BaguaBucket {
                 align_bytes,
             })),
         })
+    }
+
+    pub fn bytes(&self) -> usize {
+        self.inner.lock()
+            .tensors.iter()
+            .map(|x| x.bytes())
+            .sum()
     }
 
     pub fn tensors(&self) -> Vec<BaguaTensor> {

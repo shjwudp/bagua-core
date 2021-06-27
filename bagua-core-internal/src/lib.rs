@@ -12,7 +12,7 @@ pub mod resource_pool;
 pub mod telemetry;
 
 use crate::comm_ops::CommOpTrait;
-use crate::telemetry::{SCHEDULED_THREAD_POOL, TELEMETRY};
+use crate::telemetry::{SCHEDULED_THREAD_POOL, TELEMETRY, RecentMeanMetric};
 use cpp::cpp;
 use datatypes::{BaguaBucket, BaguaTensor};
 use events::BaguaEventChannel;
@@ -175,6 +175,7 @@ impl BaguaCommBackend {
             flume::unbounded();
         let (monitor_op_finish_channel_sender, monitor_op_finish_channel_receiver) =
             flume::unbounded();
+        let is_cuda_backend = true;
 
         BaguaCommBackend {
             ordered_buckets: Default::default(),
@@ -188,6 +189,7 @@ impl BaguaCommBackend {
                 }
                 let _span = tracing::span!(tracing::Level::TRACE, "execute_ops");
                 let _guard = _span.enter();
+                let mut comm_event_queue = VecDeque<(u64, u64, u64)>::new(); // (bytes, start_event, stop_event)
                 loop {
                     let comm_op = channels_clone
                         .schedule_channel_receiver
@@ -197,6 +199,54 @@ impl BaguaCommBackend {
                         "worker received scheduled communication operation {:?}",
                         comm_op
                     );
+
+                    if is_cuda_backend {
+                        loop {
+                            let event_pair = comm_event_queue.front()
+                            if event_pair.is_none() {
+                                break;
+                            }
+    
+                            let event_pair = event_pair.unwrap().clone();
+                            let [comm_bytes, start, stop] = event_pair.unwrap();
+                            let elapsed_time_ms = unsafe {
+                                cpp::cpp!([start as "cudaEvent_t", stop as "cudaEvent_t"] -> f32 as "float"
+                                {
+                                    float milliseconds = 0.;
+                                    cudaError_t err = cudaEventElapsedTime(&milliseconds, start, stop);
+                                    if (err != cudaSuccess) {
+                                        if (err == cudaErrorNotReady) {
+                                            return -1.;
+                                        }
+                                        printf("Failed: Cuda error %s:%d '%s'\n", __FILE__,__LINE__,cudaGetErrorString(err)); exit(EXIT_FAILURE);
+                                    }
+
+                                    return milliseconds;
+                                });
+                            };
+                            if elapsed_time_ms < 0. {
+                                break;
+                            }
+
+                            match TELEMETRY.as_ref() {
+                                None => {}
+                                Some(ref x) => {
+                                    x.lock().recent_speed.record(comm_bytes / elapsed_time_ms);
+                                    x.lock().recent_speed.debug();
+                                }
+                            }
+                        }
+                    }
+
+                    let start_event: u64 = 0;
+                    if is_cuda_backend {
+                        cpp::cpp!([start_event as "cudaEvent_t"]
+                        {
+                            CUDACHECK(cudaEventCreate(&start_event));
+                            CUDACHECK(cudaEventRecord(start_event));
+                        });
+                    }
+
                     monitor_op_start_channel_sender.send(comm_op.bucket.clone());
                     for op in &comm_op.ops {
                         op.execute_background_communication(
@@ -204,6 +254,16 @@ impl BaguaCommBackend {
                             &channels_clone,
                         );
                     }
+                    if is_cuda_backend {
+                        let end_event: u64 = 0;
+                        cpp::cpp!([end_event as "cudaEvent_t"]
+                        {
+                            CUDACHECK(cudaEventCreate(&end_event));
+                            CUDACHECK(cudaEventRecord(end_event));
+                        });
+                        comm_event_queue.push_back((comm_op.bucket.bytes(), start_event, end_event));
+                    }
+
                     tracing::debug!("comm op executed: {:?}", comm_op);
                     comm_op.event_channel.finish();
                     tracing::debug!("comm op marked finished: {:?}", comm_op);
