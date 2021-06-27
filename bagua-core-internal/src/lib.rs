@@ -225,7 +225,7 @@ impl BaguaCommBackend {
 
                                     return milliseconds;
                                 })
-                            } s;
+                            };
                             if elapsed_time_ms < 0. {
                                 break;
                             }
