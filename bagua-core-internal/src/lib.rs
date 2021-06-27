@@ -179,7 +179,7 @@ impl BaguaCommBackend {
             flume::unbounded();
 
         let is_cuda_backend = true;
-        let mut speeds = Vec::<u64, f64>::new();
+        let mut speeds = Vec::<(u64, f64)>::new();
 
         BaguaCommBackend {
             ordered_buckets: Default::default(),
@@ -212,7 +212,7 @@ impl BaguaCommBackend {
                             }
                             let (comm_bytes, start, stop) = event_pair.unwrap().clone();
                             let elapsed_time_ms = unsafe {
-                                cpp::cpp!([start as "cudaEvent_t", stop as "cudaEvent_t"] -> f64 as "float"
+                                cpp::cpp!([start as "cudaEvent_t", stop as "cudaEvent_t"] -> f32 as "float"
                                 {
                                     float milliseconds = 0.;
                                     cudaError_t err = cudaEventElapsedTime(&milliseconds, start, stop);
@@ -225,7 +225,7 @@ impl BaguaCommBackend {
 
                                     return milliseconds;
                                 })
-                            };
+                            } s;
                             if elapsed_time_ms < 0. {
                                 break;
                             }
@@ -239,7 +239,7 @@ impl BaguaCommBackend {
 
                             comm_event_queue.pop_front();
 
-                            speeds.push((comm_bytes, elapsed_time_ms));
+                            speeds.push((comm_bytes, elapsed_time_ms as f64));
                         }
 
                         let total_elapsed_time_ms = speeds
