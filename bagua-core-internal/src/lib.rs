@@ -203,13 +203,14 @@ impl BaguaCommBackend {
                     );
 
                     if is_cuda_backend {
+                        let mut speeds = Vec::new();
                         loop {
                             let event_pair = comm_event_queue.front();
                             if event_pair.is_none() {
                                 break;
                             }
                             let (comm_bytes, start, stop) = event_pair.unwrap().clone();
-                            let elapsed_time_s = unsafe {
+                            let elapsed_time_ms = unsafe {
                                 cpp::cpp!([start as "cudaEvent_t", stop as "cudaEvent_t"] -> f32 as "float"
                                 {
                                     float milliseconds = 0.;
@@ -221,27 +222,35 @@ impl BaguaCommBackend {
                                         printf("Failed: Cuda error %s:%d '%s'\n", __FILE__,__LINE__,cudaGetErrorString(err)); exit(EXIT_FAILURE);
                                     }
 
-                                    return milliseconds * 1000.;
+                                    return milliseconds;
                                 })
                             };
-                            if elapsed_time_s < 0. {
+                            if elapsed_time_ms < 0. {
                                 break;
                             }
 
                             println!(
-                                "comm_bytes={}, elapsed_time_s={}, speed={}",
+                                "comm_bytes={}, elapsed_time_ms={}, speed={}",
                                 comm_bytes,
-                                elapsed_time_s,
-                                (comm_bytes as f64 / elapsed_time_s as f64)
+                                elapsed_time_ms,
+                                (comm_bytes as f64 / elapsed_time_ms as f64)
                             );
 
                             comm_event_queue.pop_front();
+
+                            speeds.push_back(comm_bytes as f64 / elapsed_time_ms as f64);
+                        }
+
+                        if !speeds.is_empty() {
+                            let avg_speed = speeds.iter().sum() as f64 / speeds.len() as f64;
+                            println!("speeds={:?}, avg_speed={}", speeds, avg_speed);
+
                             match TELEMETRY.as_ref() {
                                 None => {}
                                 Some(ref x) => {
                                     x.lock()
                                         .recent_speed
-                                        .record(comm_bytes as f64 / elapsed_time_s as f64);
+                                        .record(avg_speed);
                                     x.lock().recent_speed.debug();
                                 }
                             }
