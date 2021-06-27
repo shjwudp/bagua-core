@@ -209,8 +209,7 @@ impl BaguaCommBackend {
                                 break;
                             }
     
-                            let event_pair = event_pair.unwrap().clone();
-                            let [comm_bytes, start, stop] = event_pair;
+                            let (comm_bytes, start, stop) = event_pair.unwrap();
                             let elapsed_time_ms = unsafe {
                                 cpp::cpp!([start as "cudaEvent_t", stop as "cudaEvent_t"] -> f32 as "float"
                                 {
@@ -230,6 +229,7 @@ impl BaguaCommBackend {
                                 break;
                             }
 
+                            comm_event_queue.pop_front();
                             match TELEMETRY.as_ref() {
                                 None => {}
                                 Some(ref x) => {
