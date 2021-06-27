@@ -209,7 +209,7 @@ impl BaguaCommBackend {
                                 break;
                             }
     
-                            let (comm_bytes, start, stop) = event_pair.unwrap().copy();
+                            let (comm_bytes, start, stop) = event_pair.unwrap().clone();
                             let elapsed_time_ms = unsafe {
                                 cpp::cpp!([start as "cudaEvent_t", stop as "cudaEvent_t"] -> f32 as "float"
                                 {
