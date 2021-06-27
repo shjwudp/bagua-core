@@ -14,7 +14,7 @@ pub mod resource_pool;
 pub mod telemetry;
 
 use crate::comm_ops::CommOpTrait;
-use crate::telemetry::{SCHEDULED_THREAD_POOL, TELEMETRY, RecentMeanMetric};
+use crate::telemetry::{RecentMeanMetric, SCHEDULED_THREAD_POOL, TELEMETRY};
 use cpp::cpp;
 use datatypes::{BaguaBucket, BaguaTensor};
 use events::BaguaEventChannel;
@@ -208,7 +208,6 @@ impl BaguaCommBackend {
                             if event_pair.is_none() {
                                 break;
                             }
-    
                             let (comm_bytes, start, stop) = event_pair.unwrap().clone();
                             let elapsed_time_ms = unsafe {
                                 cpp::cpp!([start as "cudaEvent_t", stop as "cudaEvent_t"] -> f32 as "float"
@@ -229,13 +228,20 @@ impl BaguaCommBackend {
                                 break;
                             }
 
-                            println!("elapsed_time_ms={}", elapsed_time_ms);
+                            println!(
+                                "comm_bytes={}, elapsed_time_ms={}, speed={}",
+                                comm_bytes,
+                                elapsed_time_ms,
+                                (comm_bytes as f64 / elapsed_time_ms as f64)
+                            );
 
                             comm_event_queue.pop_front();
                             match TELEMETRY.as_ref() {
                                 None => {}
                                 Some(ref x) => {
-                                    x.lock().recent_speed.record(comm_bytes as f64 / elapsed_time_ms as f64);
+                                    x.lock()
+                                        .recent_speed
+                                        .record(comm_bytes as f64 / elapsed_time_ms as f64);
                                     x.lock().recent_speed.debug();
                                 }
                             }
@@ -275,7 +281,11 @@ impl BaguaCommBackend {
                                 return end;
                             })
                         };
-                        comm_event_queue.push_back((comm_op.bucket.bytes() as u64, start_event, end_event));
+                        comm_event_queue.push_back((
+                            comm_op.bucket.bytes() as u64,
+                            start_event,
+                            end_event,
+                        ));
                     }
 
                     tracing::debug!("comm op executed: {:?}", comm_op);
