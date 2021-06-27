@@ -207,7 +207,8 @@ impl BaguaCommBackend {
                                 break;
                             }
     
-                            let [comm_bytes, start, stop] = event_pair.unwrap().clone();
+                            let event_pair = event_pair.unwrap().clone();
+                            let [comm_bytes, start, stop] = <[&u64; 3]>::try_from(event_pair).ok().unwrap();
                             let elapsed_time_ms = unsafe {
                                 cpp::cpp!([start as "cudaEvent_t", stop as "cudaEvent_t"] -> f32 as "float"
                                 {
@@ -221,7 +222,7 @@ impl BaguaCommBackend {
                                     }
 
                                     return milliseconds;
-                                });
+                                })
                             };
                             if elapsed_time_ms < 0. {
                                 break;
@@ -249,7 +250,7 @@ impl BaguaCommBackend {
                             })
                         }
                     } else {
-                        0.
+                        0
                     };
 
                     monitor_op_start_channel_sender.send(comm_op.bucket.clone());
