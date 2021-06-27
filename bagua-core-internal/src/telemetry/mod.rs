@@ -244,6 +244,13 @@ impl RecentMeanMetric {
                     + self.get_records_mean(coverage_period - time_dist)
                         * (1. - record_contribution_percentage);
 
+                if new_val < 0. {
+                    println!("time_dist={}, record_contribution_percentage={}, val={}, self.get_records_mean(coverage_period - time_dist)={}",
+                        time_dist, record_contribution_percentage,
+                        val, self.get_records_mean(coverage_period - time_dist)
+                    );
+                }
+
                 new_records.push(new_val);
 
                 if approx_eq!(
@@ -266,6 +273,8 @@ impl RecentMeanMetric {
                 break;
             }
         }
+
+        println!("new_records={:?}", new_records);
 
         self.history_base_on = now;
         self.records = new_records;
