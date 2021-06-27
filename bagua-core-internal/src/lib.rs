@@ -233,7 +233,7 @@ impl BaguaCommBackend {
                             match TELEMETRY.as_ref() {
                                 None => {}
                                 Some(ref x) => {
-                                    x.lock().recent_speed.record(comm_bytes as f64 / elapsed_time_ms as f64);
+                                    x.lock().recent_speed.record(*comm_bytes as f64 / elapsed_time_ms as f64);
                                     x.lock().recent_speed.debug();
                                 }
                             }
