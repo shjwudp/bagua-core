@@ -242,8 +242,8 @@ impl BaguaCommBackend {
                             speeds.push((comm_bytes, elapsed_time_ms as f64));
                         }
 
-                        let (total_comm_bytes, total_elapsed_time_ms) = speeds
-                            .into_iter()
+                        let (total_comm_bytes, total_elapsed_time_ms) = speeds.clone()
+                            .iter()
                             .reduce(|lhs, rhs| (lhs.0 + rhs.0, lhs.1 + rhs.1))
                             .unwrap_or((0, 0.));
 
