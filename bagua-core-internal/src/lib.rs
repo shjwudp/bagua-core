@@ -209,7 +209,7 @@ impl BaguaCommBackend {
                                 break;
                             }
                             let (comm_bytes, start, stop) = event_pair.unwrap().clone();
-                            let elapsed_time_ms = unsafe {
+                            let elapsed_time_s = unsafe {
                                 cpp::cpp!([start as "cudaEvent_t", stop as "cudaEvent_t"] -> f32 as "float"
                                 {
                                     float milliseconds = 0.;
@@ -221,18 +221,18 @@ impl BaguaCommBackend {
                                         printf("Failed: Cuda error %s:%d '%s'\n", __FILE__,__LINE__,cudaGetErrorString(err)); exit(EXIT_FAILURE);
                                     }
 
-                                    return milliseconds;
+                                    return milliseconds * 1000.;
                                 })
                             };
-                            if elapsed_time_ms < 0. {
+                            if elapsed_time_s < 0. {
                                 break;
                             }
 
                             println!(
-                                "comm_bytes={}, elapsed_time_ms={}, speed={}",
+                                "comm_bytes={}, elapsed_time_s={}, speed={}",
                                 comm_bytes,
-                                elapsed_time_ms,
-                                (comm_bytes as f64 / elapsed_time_ms as f64)
+                                elapsed_time_s,
+                                (comm_bytes as f64 / elapsed_time_s as f64)
                             );
 
                             comm_event_queue.pop_front();
@@ -241,7 +241,7 @@ impl BaguaCommBackend {
                                 Some(ref x) => {
                                     x.lock()
                                         .recent_speed
-                                        .record(comm_bytes as f64 / elapsed_time_ms as f64);
+                                        .record(comm_bytes as f64 / elapsed_time_s as f64);
                                     x.lock().recent_speed.debug();
                                 }
                             }
