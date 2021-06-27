@@ -237,16 +237,20 @@ impl BaguaCommBackend {
                         }
                     }
 
-                    let start_event: u64 = 0;
-                    if is_cuda_backend {
+                    let start_event: u64 = if is_cuda_backend {
                         unsafe {
-                            cpp::cpp!([start_event as "cudaEvent_t"]
+                            cpp::cpp!([] -> u64 as "cudaEvent_t"
                             {
-                                CUDACHECK(cudaEventCreate(&start_event));
-                                CUDACHECK(cudaEventRecord(start_event));
-                            });
+                                cudaEvent_t start;
+                                CUDACHECK(cudaEventCreate(&start));
+                                CUDACHECK(cudaEventRecord(start));
+
+                                return start;
+                            })
                         }
-                    }
+                    } else {
+                        0.
+                    };
 
                     monitor_op_start_channel_sender.send(comm_op.bucket.clone());
                     for op in &comm_op.ops {
@@ -256,14 +260,16 @@ impl BaguaCommBackend {
                         );
                     }
                     if is_cuda_backend {
-                        let end_event: u64 = 0;
-                        unsafe {
-                            cpp::cpp!([end_event as "cudaEvent_t"]
+                        let end_event: u64 = unsafe {
+                            cpp::cpp!([] -> u64 as "cudaEvent_t"
                             {
-                                CUDACHECK(cudaEventCreate(&end_event));
-                                CUDACHECK(cudaEventRecord(end_event));
-                            });
-                        }
+                                cudaEvent_t end;
+                                CUDACHECK(cudaEventCreate(&end));
+                                CUDACHECK(cudaEventRecord(end));
+
+                                return end;
+                            })
+                        };
                         comm_event_queue.push_back((comm_op.bucket.bytes() as u64, start_event, end_event));
                     }
 
