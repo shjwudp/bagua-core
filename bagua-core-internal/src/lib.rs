@@ -177,7 +177,9 @@ impl BaguaCommBackend {
             flume::unbounded();
         let (monitor_op_finish_channel_sender, monitor_op_finish_channel_receiver) =
             flume::unbounded();
+
         let is_cuda_backend = true;
+        let mut speeds = Vec::new();
 
         BaguaCommBackend {
             ordered_buckets: Default::default(),
@@ -238,19 +240,24 @@ impl BaguaCommBackend {
 
                             comm_event_queue.pop_front();
 
-                            speeds.push(comm_bytes as f64 / elapsed_time_ms as f64);
+                            speeds.push((comm_bytes, elapsed_time_ms));
                         }
 
-                        if !speeds.is_empty() {
-                            let avg_speed = speeds.iter().sum::<f64>() as f64 / speeds.len() as f64;
-                            println!("speeds={:?}, avg_speed={}", speeds, avg_speed);
+                        let total_elapsed_time_ms = speeds
+                            .into_iter()
+                            .map(|(_, elapsed_time_ms)| elapsed_time_ms)
+                            .sum::<f64>();
 
+                        // Report every 100ms
+                        if total_elapsed_time_ms > 100. {
+                            let total_comm_bytes = speeds
+                                .into_iter()
+                                .map(|(comm_bytes, _)| comm_bytes)
+                                .sum::<f64>();
                             match TELEMETRY.as_ref() {
                                 None => {}
                                 Some(ref x) => {
-                                    x.lock()
-                                        .recent_speed
-                                        .record(avg_speed);
+                                    x.lock().recent_speed.record(total_comm_bytes / total_elapsed_time_ms);
                                     x.lock().recent_speed.debug();
                                 }
                             }
