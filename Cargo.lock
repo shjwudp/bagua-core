@@ -124,6 +124,7 @@ dependencies = [
  "ndarray",
  "once_cell",
  "oneshot",
+ "openssl",
  "parking_lot",
  "pyo3",
  "reqwest",
