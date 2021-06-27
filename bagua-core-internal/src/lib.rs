@@ -1,6 +1,8 @@
 #![allow(clippy::needless_return)]
 #[macro_use]
 extern crate shadow_rs;
+#[macro_use]
+extern crate float_cmp;
 
 pub mod comm_ops;
 pub mod communicators;
@@ -208,7 +210,7 @@ impl BaguaCommBackend {
                             }
     
                             let event_pair = event_pair.unwrap().clone();
-                            let [comm_bytes, start, stop] = <[&u64; 3]>::try_from(event_pair).ok().unwrap();
+                            let [comm_bytes, start, stop] = event_pair;
                             let elapsed_time_ms = unsafe {
                                 cpp::cpp!([start as "cudaEvent_t", stop as "cudaEvent_t"] -> f32 as "float"
                                 {
