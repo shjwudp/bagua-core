@@ -242,21 +242,17 @@ impl BaguaCommBackend {
                             speeds.push((comm_bytes, elapsed_time_ms as f64));
                         }
 
-                        let total_elapsed_time_ms = speeds
+                        let (total_comm_bytes, total_elapsed_time_ms) = speeds
                             .into_iter()
-                            .map(|(_, elapsed_time_ms)| elapsed_time_ms as f64)
-                            .sum::<f64>();
+                            .reduce(|lhs, rhs| (lhs.0 + rhs.0, lhs.1 + rhs.1))
+                            .unwrap_or((0, 0.));
 
                         // Report every 100ms
                         if total_elapsed_time_ms > 100. {
-                            let total_comm_bytes = speeds
-                                .into_iter()
-                                .map(|(comm_bytes, _)| comm_bytes as f64)
-                                .sum::<f64>();
                             match TELEMETRY.as_ref() {
                                 None => {}
                                 Some(ref x) => {
-                                    x.lock().recent_speed.record(total_comm_bytes / total_elapsed_time_ms);
+                                    x.lock().recent_speed.record(total_comm_bytes as f64 / total_elapsed_time_ms);
                                     x.lock().recent_speed.debug();
                                 }
                             }
