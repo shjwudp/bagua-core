@@ -238,7 +238,7 @@ impl BaguaCommBackend {
 
                             comm_event_queue.pop_front();
 
-                            speeds.push_back(comm_bytes as f64 / elapsed_time_ms as f64);
+                            speeds.push(comm_bytes as f64 / elapsed_time_ms as f64);
                         }
 
                         if !speeds.is_empty() {
