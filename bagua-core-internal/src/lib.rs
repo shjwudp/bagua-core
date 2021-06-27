@@ -242,7 +242,7 @@ impl BaguaCommBackend {
                         }
 
                         if !speeds.is_empty() {
-                            let avg_speed = speeds.iter().sum<f64>() as f64 / speeds.len() as f64;
+                            let avg_speed = speeds.iter().sum::<f64>() as f64 / speeds.len() as f64;
                             println!("speeds={:?}, avg_speed={}", speeds, avg_speed);
 
                             match TELEMETRY.as_ref() {
