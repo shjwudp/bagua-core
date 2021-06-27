@@ -229,6 +229,8 @@ impl BaguaCommBackend {
                                 break;
                             }
 
+                            println!("elapsed_time_ms={}", elapsed_time_ms);
+
                             comm_event_queue.pop_front();
                             match TELEMETRY.as_ref() {
                                 None => {}
