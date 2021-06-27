@@ -189,7 +189,7 @@ impl BaguaCommBackend {
                 }
                 let _span = tracing::span!(tracing::Level::TRACE, "execute_ops");
                 let _guard = _span.enter();
-                let mut comm_event_queue = VecDeque<(u64, u64, u64)>::new(); // (bytes, start_event, stop_event)
+                let mut comm_event_queue = VecDeque::<(u64, u64, u64)>::new(); // (bytes, start_event, stop_event)
                 loop {
                     let comm_op = channels_clone
                         .schedule_channel_receiver
@@ -202,13 +202,12 @@ impl BaguaCommBackend {
 
                     if is_cuda_backend {
                         loop {
-                            let event_pair = comm_event_queue.front()
+                            let event_pair = comm_event_queue.front();
                             if event_pair.is_none() {
                                 break;
                             }
     
-                            let event_pair = event_pair.unwrap().clone();
-                            let [comm_bytes, start, stop] = event_pair.unwrap();
+                            let [comm_bytes, start, stop] = event_pair.unwrap().clone();
                             let elapsed_time_ms = unsafe {
                                 cpp::cpp!([start as "cudaEvent_t", stop as "cudaEvent_t"] -> f32 as "float"
                                 {
@@ -240,11 +239,13 @@ impl BaguaCommBackend {
 
                     let start_event: u64 = 0;
                     if is_cuda_backend {
-                        cpp::cpp!([start_event as "cudaEvent_t"]
-                        {
-                            CUDACHECK(cudaEventCreate(&start_event));
-                            CUDACHECK(cudaEventRecord(start_event));
-                        });
+                        unsafe {
+                            cpp::cpp!([start_event as "cudaEvent_t"]
+                            {
+                                CUDACHECK(cudaEventCreate(&start_event));
+                                CUDACHECK(cudaEventRecord(start_event));
+                            });
+                        }
                     }
 
                     monitor_op_start_channel_sender.send(comm_op.bucket.clone());
@@ -256,12 +257,14 @@ impl BaguaCommBackend {
                     }
                     if is_cuda_backend {
                         let end_event: u64 = 0;
-                        cpp::cpp!([end_event as "cudaEvent_t"]
-                        {
-                            CUDACHECK(cudaEventCreate(&end_event));
-                            CUDACHECK(cudaEventRecord(end_event));
-                        });
-                        comm_event_queue.push_back((comm_op.bucket.bytes(), start_event, end_event));
+                        unsafe {
+                            cpp::cpp!([end_event as "cudaEvent_t"]
+                            {
+                                CUDACHECK(cudaEventCreate(&end_event));
+                                CUDACHECK(cudaEventRecord(end_event));
+                            });
+                        }
+                        comm_event_queue.push_back((comm_op.bucket.bytes() as u64, start_event, end_event));
                     }
 
                     tracing::debug!("comm op executed: {:?}", comm_op);
