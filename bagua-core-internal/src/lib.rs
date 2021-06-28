@@ -230,12 +230,12 @@ impl BaguaCommBackend {
                                 break;
                             }
 
-                            println!(
-                                "comm_bytes={}, elapsed_time_ms={}, speed={}",
-                                comm_bytes,
-                                elapsed_time_ms,
-                                (comm_bytes as f64 / elapsed_time_ms as f64)
-                            );
+                            // println!(
+                            //     "comm_bytes={}, elapsed_time_ms={}, speed={}",
+                            //     comm_bytes,
+                            //     elapsed_time_ms,
+                            //     (comm_bytes as f64 / elapsed_time_ms as f64)
+                            // );
 
                             comm_event_queue.pop_front();
 
@@ -247,13 +247,13 @@ impl BaguaCommBackend {
                             .reduce(|lhs, rhs| (lhs.0 + rhs.0, lhs.1 + rhs.1))
                             .unwrap_or((0, 0.));
 
-                        // Report every 100ms
+                        // The statistical error in a too small time range is large, report every 100ms
                         if total_elapsed_time_ms > 100. {
                             match TELEMETRY.as_ref() {
                                 None => {}
                                 Some(ref x) => {
                                     x.lock().recent_speed.record(total_comm_bytes as f64 / total_elapsed_time_ms);
-                                    x.lock().recent_speed.debug();
+                                    // x.lock().recent_speed.debug();
                                 }
                             }
 
