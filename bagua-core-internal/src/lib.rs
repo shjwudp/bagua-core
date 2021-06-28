@@ -25,6 +25,7 @@ use std::fmt::Debug;
 use std::sync::Arc;
 use std::time::Duration;
 use thiserror::Error;
+use std::sync::RwLock;
 
 cpp! {{
 #include <nccl.h>
@@ -125,7 +126,7 @@ pub struct BaguaCommBackend {
     managed_ptrs: HashSet<u64>,
     comm_worker: std::thread::JoinHandle<()>,
     comm_monitor: std::thread::JoinHandle<()>,
-    speed_metric: Arc<StatisticalAverage>,
+    speed_metric: Arc<RwLock<StatisticalAverage>>,
 }
 
 impl BaguaCommBackend {
@@ -179,7 +180,7 @@ impl BaguaCommBackend {
         let (monitor_op_finish_channel_sender, monitor_op_finish_channel_receiver) =
             flume::unbounded();
 
-        let speed_metric = Arc::new(StatisticalAverage::new());
+        let speed_metric = Arc::new(RwLock::new(StatisticalAverage::new()));
         let speed_metric_clone = speed_metric.clone();
 
         BaguaCommBackend {
@@ -256,7 +257,9 @@ impl BaguaCommBackend {
                         // The statistical error in a too small time range is large, report every 100ms
                         if total_elapsed_time_ms > 100. {
                             let bytes_per_second = total_comm_bytes as f64 / (total_elapsed_time_ms / 1000.);
-                            speed_metric.record(bytes_per_second);
+                            let Ok(mut speed_metric_lock) = speed_metric.write() {
+                                speed_metric_lock.record(bytes_per_second);
+                            }
 
                             speeds.clear();
                         }
@@ -449,7 +452,13 @@ impl BaguaCommBackend {
     }
 
     pub fn get_speed(&self, last_n_seconds: f64) -> Result<f64, BaguaCoreError> {
-        let avg_speed = self.speed_metric.get(last_n_seconds);
-        Ok(avg_speed)
+        match self.speed_metric.read() {
+            Ok(mut speed_metric) => {
+                speed_metric.get(last_n_seconds)
+            }
+            Err(err) => {
+                BaguaCoreError::BackendError(format!("{:?}", err))
+            }
+        }
     }
 }

@@ -8,7 +8,6 @@ use reqwest;
 use scheduled_thread_pool::ScheduledThreadPool;
 use serde::{Deserialize, Serialize};
 use std::time::Instant;
-use std::sync::RwLock;
 
 #[allow(dead_code)]
 pub static SCHEDULED_THREAD_POOL: Lazy<ScheduledThreadPool> =
@@ -149,7 +148,6 @@ pub struct StatisticalAverage {
     history_base_on: std::time::Instant,
     records: Vec<f64>,
     tail: Option<(f64, f64)>,
-    lock: RwLock,
 }
 
 impl StatisticalAverage {
@@ -158,13 +156,10 @@ impl StatisticalAverage {
             history_base_on: Instant::now(),
             records: Default::default(),
             tail: None,
-            lock: RwLock::new(5),
         }
     }
 
     fn get_records_mean(&self, last_x_seconds: f64) -> f64 {
-        let r = lock.read().unwrap();
-
         if approx_eq!(f64, last_x_seconds, 0., ulps = 2) {
             return 0.;
         }
@@ -216,8 +211,6 @@ impl StatisticalAverage {
     }
 
     pub fn total_recording_time(&self) -> f64 {
-        let r = lock.read().unwrap();
-
         let records_seconds: f64 = if self.records.len() != 0 {
             (2 as f64).powf((self.records.len() - 1) as f64)
         } else {
@@ -233,8 +226,6 @@ impl StatisticalAverage {
     }
 
     pub fn record(&mut self, val: f64) {
-        let mut w = lock.write().unwrap();
-
         let now = Instant::now();
         let time_dist = now.duration_since(self.history_base_on).as_secs_f64();
         let mut new_records: Vec<f64> = Default::default();
@@ -291,8 +282,6 @@ impl StatisticalAverage {
     }
 
     pub fn get(&self, last_x_seconds: f64) -> f64 {
-        let r = lock.read().unwrap();
-
         let time_dist = Instant::now()
             .duration_since(self.history_base_on)
             .as_secs_f64();
@@ -305,8 +294,6 @@ impl StatisticalAverage {
     }
 
     pub fn debug(&self) {
-        let r = lock.read().unwrap();
-
         println!("{:?}", self);
         let report_list = vec![1, 2, 10, 60, 120, 60 * 60];
         for x in report_list.iter() {
