@@ -149,7 +149,7 @@ pub struct StatisticalAverage {
     history_base_on: std::time::Instant,
     records: Vec<f64>,
     tail: Option<(f64, f64)>,
-    lock: RwLock;
+    lock: RwLock,
 }
 
 impl StatisticalAverage {
