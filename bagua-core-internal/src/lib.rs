@@ -23,9 +23,9 @@ use hashbrown::{HashMap, HashSet};
 use std::collections::VecDeque;
 use std::fmt::Debug;
 use std::sync::Arc;
+use std::sync::RwLock;
 use std::time::Duration;
 use thiserror::Error;
-use std::sync::RwLock;
 
 cpp! {{
 #include <nccl.h>
@@ -249,17 +249,21 @@ impl BaguaCommBackend {
                             speeds.push((comm_bytes, elapsed_time_ms as f64));
                         }
 
-                        let (total_comm_bytes, total_elapsed_time_ms) = speeds.clone()
+                        let (total_comm_bytes, total_elapsed_time_ms) = speeds
+                            .clone()
                             .into_iter()
                             .reduce(|lhs, rhs| (lhs.0 + rhs.0, lhs.1 + rhs.1))
                             .unwrap_or((0, 0.));
 
                         // The statistical error in a too small time range is large, report every 100ms
                         if total_elapsed_time_ms > 100. {
-                            let bytes_per_second = total_comm_bytes as f64 / (total_elapsed_time_ms / 1000.);
+                            let bytes_per_second =
+                                total_comm_bytes as f64 / (total_elapsed_time_ms / 1000.);
                             match speed_metric.write() {
-                                Ok(speed_metric_lock) => speed_metric_lock.record(bytes_per_second)
-                                Err(err) => tracing::error!("{:?}", err)
+                                Ok(speed_metric_lock) => speed_metric_lock.record(bytes_per_second),
+                                Err(err) => {
+                                    tracing::error!("{:?}", err)
+                                }
                             }
 
                             speeds.clear();
@@ -454,12 +458,8 @@ impl BaguaCommBackend {
 
     pub fn get_speed(&self, last_n_seconds: f64) -> Result<f64, BaguaCoreError> {
         match self.speed_metric.read() {
-            Ok(mut speed_metric) => {
-                Ok(speed_metric.get(last_n_seconds))
-            }
-            Err(err) => {
-                Err(BaguaCoreError::BackendError(format!("{:?}", err)))
-            }
+            Ok(mut speed_metric) => Ok(speed_metric.get(last_n_seconds)),
+            Err(err) => Err(BaguaCoreError::BackendError(format!("{:?}", err))),
         }
     }
 }
