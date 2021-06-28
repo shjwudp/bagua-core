@@ -8,6 +8,7 @@ use reqwest;
 use scheduled_thread_pool::ScheduledThreadPool;
 use serde::{Deserialize, Serialize};
 use std::time::Instant;
+use std::sync::RwLock;
 
 #[allow(dead_code)]
 pub static SCHEDULED_THREAD_POOL: Lazy<ScheduledThreadPool> =
@@ -29,7 +30,6 @@ pub struct BaguaCommCoreTelemetry {
     client: reqwest::blocking::Client,
     server_addr: String,
     current_payload: TelemetryPayload,
-    pub recent_speed: RecentMeanMetric,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -65,7 +65,6 @@ impl BaguaCommCoreTelemetry {
             client: client,
             server_addr: server_addr.to_string(),
             current_payload: TelemetryPayload::default(),
-            recent_speed: RecentMeanMetric::new(),
         }
     }
 
@@ -146,22 +145,26 @@ impl BaguaCommCoreTelemetry {
 }
 
 #[derive(Debug)]
-pub struct RecentMeanMetric {
+pub struct StatisticalAverage {
     history_base_on: std::time::Instant,
     records: Vec<f64>,
     tail: Option<(f64, f64)>,
+    lock: RwLock;
 }
 
-impl RecentMeanMetric {
-    pub fn new() -> RecentMeanMetric {
-        RecentMeanMetric {
+impl StatisticalAverage {
+    pub fn new() -> StatisticalAverage {
+        StatisticalAverage {
             history_base_on: Instant::now(),
             records: Default::default(),
             tail: None,
+            lock: RwLock::new(5),
         }
     }
 
     fn get_records_mean(&self, last_x_seconds: f64) -> f64 {
+        let r = lock.read().unwrap();
+
         if approx_eq!(f64, last_x_seconds, 0., ulps = 2) {
             return 0.;
         }
@@ -213,6 +216,8 @@ impl RecentMeanMetric {
     }
 
     pub fn total_recording_time(&self) -> f64 {
+        let r = lock.read().unwrap();
+
         let records_seconds: f64 = if self.records.len() != 0 {
             (2 as f64).powf((self.records.len() - 1) as f64)
         } else {
@@ -228,6 +233,8 @@ impl RecentMeanMetric {
     }
 
     pub fn record(&mut self, val: f64) {
+        let mut w = lock.write().unwrap();
+
         let now = Instant::now();
         let time_dist = now.duration_since(self.history_base_on).as_secs_f64();
         let mut new_records: Vec<f64> = Default::default();
@@ -278,26 +285,28 @@ impl RecentMeanMetric {
             }
         }
 
-        println!("new_records={:?}", new_records);
-
         self.history_base_on = now;
         self.records = new_records;
         self.tail = new_tail;
     }
 
-    pub fn get(&self, x_seconds: f64) -> f64 {
+    pub fn get(&self, last_x_seconds: f64) -> f64 {
+        let r = lock.read().unwrap();
+
         let time_dist = Instant::now()
             .duration_since(self.history_base_on)
             .as_secs_f64();
 
-        if x_seconds <= time_dist {
+        if last_x_seconds <= time_dist {
             return self.records[0];
         }
 
-        self.get_records_mean(x_seconds - time_dist)
+        self.get_records_mean(last_x_seconds - time_dist)
     }
 
     pub fn debug(&self) {
+        let r = lock.read().unwrap();
+
         println!("{:?}", self);
         let report_list = vec![1, 2, 10, 60, 120, 60 * 60];
         for x in report_list.iter() {
@@ -314,7 +323,7 @@ mod tests {
 
     #[test]
     fn test_end_to_end() {
-        let mut m = RecentMeanMetric {
+        let mut m = StatisticalAverage {
             history_base_on: Instant::now(),
             records: vec![5.0, 4.5005175, 3.5034241850204078],
             tail: Some((2.0166309999999985, 2.499061185570463)),

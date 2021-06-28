@@ -220,6 +220,13 @@ impl BaguaCommBackendPy {
         py.allow_threads(|| self.inner.wait_pending_post_backward_comm_ops())
             .map_err(|e| PyRuntimeError::new_err(format!("{:?}", e)))
     }
+
+    pub fn get_speed(&self, last_n_seconds: f64) -> PyResult<f64> {
+        self.inner
+            .get_speed(last_n_seconds)
+            .map_err(|e| PyRuntimeError::new_err(format!("{:?}", e)))
+    }
+
 }
 
 #[pyclass(dict)]
