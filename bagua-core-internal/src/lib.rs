@@ -178,7 +178,7 @@ impl BaguaCommBackend {
         let (monitor_op_finish_channel_sender, monitor_op_finish_channel_receiver) =
             flume::unbounded();
 
-        let is_cuda_backend = true;
+        let is_cuda_backend = false;
         let mut speeds = Vec::<(u64, f64)>::new();
 
         BaguaCommBackend {

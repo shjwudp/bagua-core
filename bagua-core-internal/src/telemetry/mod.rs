@@ -270,7 +270,6 @@ impl RecentMeanMetric {
                 } else {
                     new_total_time - coverage_period / 2.
                 };
-                println!("new_total_time={}, tail_len={}", new_total_time, tail_len);
                 let tail_val = val * report_contribution_percentage
                     + self.get_records_mean(self.total_recording_time())
                         * (1. - report_contribution_percentage);
