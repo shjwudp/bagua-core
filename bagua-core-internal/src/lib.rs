@@ -260,7 +260,7 @@ impl BaguaCommBackend {
                             let bytes_per_second =
                                 total_comm_bytes as f64 / (total_elapsed_time_ms / 1000.);
                             match speed_metric.write() {
-                                Ok(speed_metric_lock) => speed_metric_lock.record(bytes_per_second),
+                                Ok(mut speed_metric_lock) => speed_metric_lock.record(bytes_per_second),
                                 Err(err) => {
                                     tracing::error!("{:?}", err)
                                 }
@@ -458,7 +458,7 @@ impl BaguaCommBackend {
 
     pub fn get_speed(&self, last_n_seconds: f64) -> Result<f64, BaguaCoreError> {
         match self.speed_metric.read() {
-            Ok(mut speed_metric) => Ok(speed_metric.get(last_n_seconds)),
+            Ok(speed_metric) => Ok(speed_metric.get(last_n_seconds)),
             Err(err) => Err(BaguaCoreError::BackendError(format!("{:?}", err))),
         }
     }
