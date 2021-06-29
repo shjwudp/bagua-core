@@ -14,6 +14,7 @@ pub mod resource_pool;
 pub mod telemetry;
 
 use crate::comm_ops::CommOpTrait;
+use crate::env::{get_rank};
 use crate::telemetry::{StatisticalAverage, SCHEDULED_THREAD_POOL, TELEMETRY};
 use cpp::cpp;
 use datatypes::{BaguaBucket, BaguaTensor};
@@ -263,7 +264,7 @@ impl BaguaCommBackend {
                             let gbytes_per_second = total_comm_gb / total_elapsed_time_s;
 
                             log_count += 1;
-                            if log_count % 100 == 0 {
+                            if log_count % 100 == 0 && get_rank() == 0 {
                                 println!("gbytes_per_second={}, speeds={:?}", gbytes_per_second, speeds);
                             }
                             match speed_metric.write() {
