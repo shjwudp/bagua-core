@@ -182,6 +182,7 @@ impl BaguaCommBackend {
 
         let speed_metric = Arc::new(RwLock::new(StatisticalAverage::new()));
         let speed_metric_clone = speed_metric.clone();
+        let mut log_count = 0;
 
         BaguaCommBackend {
             ordered_buckets: Default::default(),
@@ -261,7 +262,10 @@ impl BaguaCommBackend {
                             let total_comm_gb = total_comm_bytes as f64 / 1024_f64.powf(3.); 
                             let gbytes_per_second = total_comm_gb / total_elapsed_time_s;
 
-                            println!("gbytes_per_second={}, speeds={:?}", gbytes_per_second, speeds);
+                            log_count += 1;
+                            if log_count % 100 == 0 {
+                                println!("gbytes_per_second={}, speeds={:?}", gbytes_per_second, speeds);
+                            }
                             match speed_metric.write() {
                                 Ok(mut speed_metric_lock) => speed_metric_lock.record(gbytes_per_second),
                                 Err(err) => {
