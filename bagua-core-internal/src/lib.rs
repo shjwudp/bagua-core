@@ -14,7 +14,7 @@ pub mod resource_pool;
 pub mod telemetry;
 
 use crate::comm_ops::CommOpTrait;
-use crate::env::{get_rank};
+use crate::env_var::{get_rank};
 use crate::telemetry::{StatisticalAverage, SCHEDULED_THREAD_POOL, TELEMETRY};
 use cpp::cpp;
 use datatypes::{BaguaBucket, BaguaTensor};
