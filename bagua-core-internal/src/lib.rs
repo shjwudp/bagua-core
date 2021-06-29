@@ -265,7 +265,7 @@ impl BaguaCommBackend {
                             let gbytes_per_second = total_comm_gb / total_elapsed_time_s;
 
                             log_count += 1;
-                            if log_count % 100 == 0 && get_rank() == 0 {
+                            if log_count % 100 == 0 && (get_rank() == 0 || get_rank() == 8 || get_rank() == 17 || get_rank() == 23) {
                                 println!("gbytes_per_second={}, speeds={:?}", gbytes_per_second, speeds);
                             }
                             match speed_metric.write() {
