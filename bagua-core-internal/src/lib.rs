@@ -257,10 +257,11 @@ impl BaguaCommBackend {
 
                         // The statistical error in a too small time range is large, report every 100ms
                         if total_elapsed_time_ms > 100. {
-                            let bytes_per_second =
-                                total_comm_bytes as f64 / (total_elapsed_time_ms / 1000.);
+                            let total_elapsed_time_s = total_elapsed_time_ms / 1000.;
+                            let total_comm_gb = total_comm_bytes as f64 / 1024_f64.powf(3.); 
+                            let gbytes_per_second = total_comm_gb / total_elapsed_time_s;
                             match speed_metric.write() {
-                                Ok(mut speed_metric_lock) => speed_metric_lock.record(bytes_per_second),
+                                Ok(mut speed_metric_lock) => speed_metric_lock.record(gbytes_per_second),
                                 Err(err) => {
                                     tracing::error!("{:?}", err)
                                 }
