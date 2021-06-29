@@ -260,6 +260,8 @@ impl BaguaCommBackend {
                             let total_elapsed_time_s = total_elapsed_time_ms / 1000.;
                             let total_comm_gb = total_comm_bytes as f64 / 1024_f64.powf(3.); 
                             let gbytes_per_second = total_comm_gb / total_elapsed_time_s;
+
+                            println!("gbytes_per_second={}, speeds={:?}", gbytes_per_second, speeds);
                             match speed_metric.write() {
                                 Ok(mut speed_metric_lock) => speed_metric_lock.record(gbytes_per_second),
                                 Err(err) => {
