@@ -8,14 +8,14 @@ pub mod comm_ops;
 pub mod communicators;
 pub mod cuda_utils;
 pub mod datatypes;
+pub mod env_var;
 pub mod events;
 pub mod kernels;
 pub mod resource_pool;
 pub mod telemetry;
-pub mod env_var;
 
 use crate::comm_ops::CommOpTrait;
-use crate::env_var::{get_rank};
+use crate::env_var::get_rank;
 use crate::telemetry::{StatisticalAverage, SCHEDULED_THREAD_POOL, TELEMETRY};
 use cpp::cpp;
 use datatypes::{BaguaBucket, BaguaTensor};
@@ -261,15 +261,23 @@ impl BaguaCommBackend {
                         // The statistical error in a too small time range is large, report every 100ms
                         if total_elapsed_time_ms > 100. {
                             let total_elapsed_time_s = total_elapsed_time_ms / 1000.;
-                            let total_comm_gb = total_comm_bytes as f64 / 1024_f64.powf(3.); 
+                            let total_comm_gb = total_comm_bytes as f64 / 1024_f64.powf(3.);
                             let gbytes_per_second = total_comm_gb / total_elapsed_time_s;
 
                             log_count += 1;
-                            if log_count % 100 == 0 && (get_rank() == 0 || get_rank() == 8 || get_rank() == 17 || get_rank() == 23) {
-                                println!("gbytes_per_second={}, speeds={:?}", gbytes_per_second, speeds);
+                            let rank = get_rank();
+                            if log_count % 100 == 0
+                                && (rank == 0 || rank == 8 || rank == 17 || rank == 23)
+                            {
+                                println!(
+                                    "rank={}, gbytes_per_second={}, speeds={:?}",
+                                    rank, gbytes_per_second, speeds
+                                );
                             }
                             match speed_metric.write() {
-                                Ok(mut speed_metric_lock) => speed_metric_lock.record(gbytes_per_second),
+                                Ok(mut speed_metric_lock) => {
+                                    speed_metric_lock.record(gbytes_per_second)
+                                }
                                 Err(err) => {
                                     tracing::error!("{:?}", err)
                                 }
