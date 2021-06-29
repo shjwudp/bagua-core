@@ -12,6 +12,7 @@ pub mod events;
 pub mod kernels;
 pub mod resource_pool;
 pub mod telemetry;
+pub mod env_var;
 
 use crate::comm_ops::CommOpTrait;
 use crate::env_var::{get_rank};
