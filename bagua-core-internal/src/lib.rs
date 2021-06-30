@@ -264,16 +264,16 @@ impl BaguaCommBackend {
                             let total_comm_gb = total_comm_bytes as f64 / 1024_f64.powf(3.);
                             let gbytes_per_second = total_comm_gb / total_elapsed_time_s;
 
-                            log_count += 1;
-                            let rank = get_rank();
-                            if log_count % 100 == 0
-                                && (rank == 0 || rank == 8 || rank == 17 || rank == 23)
-                            {
-                                println!(
-                                    "rank={}, gbytes_per_second={}, speeds={:?}",
-                                    rank, gbytes_per_second, speeds
-                                );
-                            }
+                            // log_count += 1;
+                            // let rank = get_rank();
+                            // if log_count % 100 == 0
+                            //     && (rank == 0 || rank == 8 || rank == 17 || rank == 23)
+                            // {
+                            //     println!(
+                            //         "rank={}, gbytes_per_second={}, speeds={:?}",
+                            //         rank, gbytes_per_second, speeds
+                            //     );
+                            // }
                             match speed_metric.write() {
                                 Ok(mut speed_metric_lock) => {
                                     speed_metric_lock.record(gbytes_per_second)
