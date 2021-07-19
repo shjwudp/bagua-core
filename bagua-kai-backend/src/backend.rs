@@ -254,7 +254,10 @@ impl BaguaSingleBackendForKAI {
         println!("rank={}, req={:?}", self.rank, req);
         let rsp = telemetry.register_tensors(req).unwrap();
         let mut buckets = Vec::new();
-        println!("rank={}, buckets={:?}", self.rank, rsp.recommended_hyperparameters.buckets);
+        println!(
+            "rank={}, buckets={:?}",
+            self.rank, rsp.recommended_hyperparameters.buckets
+        );
         self.inner_tensors.clear();
         for (i, td_bucket) in rsp.recommended_hyperparameters.buckets.iter().enumerate() {
             let mut tensors_ref = Vec::<&BaguaTensor>::new();
