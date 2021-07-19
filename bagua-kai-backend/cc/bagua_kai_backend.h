@@ -5,6 +5,7 @@
 #include <new>
 #include <vector>
 #include <memory>
+#include <iostream>
 
 struct BaguaBucketC;
 
@@ -85,7 +86,7 @@ namespace bagua
                     static_cast<uintptr_t>(master_addr.length()),
                     master_port,
                     cuda_stream_ptr),
-                [](BaguaSingleBackendForKAIC *ptr)
+                [=](BaguaSingleBackendForKAIC *ptr)
                 {
                     bagua_single_backend_for_kai_c_destory(&ptr);
                 });
@@ -107,7 +108,7 @@ namespace bagua
                 _backend.get(),
                 model_name.c_str(),
                 static_cast<uintptr_t>(model_name.length()),
-                &tensors.at(0),
+                &tensors[0],
                 static_cast<uintptr_t>(tensors.size()),
                 autotune_service_addr.c_str(),
                 static_cast<uintptr_t>(autotune_service_addr.length()),
@@ -157,7 +158,7 @@ namespace bagua
                     dtype_str.c_str(),
                     static_cast<uintptr_t>(dtype_str.length()),
                     ready_cuda_event_ptr),
-                [](BaguaTensorC *p)
+                [=](BaguaTensorC *p)
                 {
                     bagua_tensor_c_destroy(&p);
                 });
@@ -186,12 +187,12 @@ namespace bagua
             uintptr_t device_id,
             const std::string &master_addr,
             int32_t master_port,
-            bool copy_tensors) : _backend(rank,
+            cudaStream_t cuda_stream_ptr) : _backend(rank,
                                             nranks,
                                             device_id,
                                             master_addr,
                                             master_port,
-                                            copy_tensors)
+                                            (uint64_t)cuda_stream_ptr)
         {
         }
 

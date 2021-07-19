@@ -2,6 +2,7 @@
 #include <iostream>
 #include <mutex>
 #include <thread>
+#include <chrono>
 
 #include <gtest/gtest.h>
 #include <cuda.h>
@@ -27,7 +28,8 @@ value_pass_H2D(void *src_ptr, size_t bytes, cudaStream_t cuda_stream)
 {
     void *device_ptr = 0;
     CUDACHECK(cudaMalloc(&device_ptr, bytes));
-    CUDACHECK(cudaMemcpyAsync(device_ptr, src_ptr, bytes, cudaMemcpyHostToDevice, cuda_stream));
+    // CUDACHECK(cudaMemcpyAsync(device_ptr, src_ptr, bytes, cudaMemcpyHostToDevice, cuda_stream));
+    CUDACHECK(cudaMemcpy(device_ptr, src_ptr, bytes, cudaMemcpyHostToDevice));
     cudaEvent_t cuda_event = NULL;
     CUDACHECK(cudaEventCreateWithFlags(
         &cuda_event, cudaEventBlockingSync | cudaEventDisableTiming));
@@ -59,12 +61,12 @@ void allreduce(
     int32_t autotune_service_port)
 {
     CUDACHECK(cudaSetDevice(device_id));
-    cudaStream_t cuda_stream;
+    cudaStream_t cuda_stream = 0;
     CUDACHECK(cudaStreamCreate(&cuda_stream));
 
     std::vector<std::shared_ptr<void> > memory_holder;
     std::vector<std::vector<bagua::BaguaTensor> > io_tensors;
-    const int tensor_num = 10;
+    const int tensor_num = 1;
     float input_value = device_id;
     for (int i = 0; i < tensor_num; i++)
     {
@@ -85,14 +87,14 @@ void allreduce(
                 input.first,
                 1,
                 "f32",
-                (uint64_t)(input.second)),
+                0),
             bagua::BaguaTensor(
                 tensor_name,
                 reinterpret_cast<uintptr_t>(device_id),
                 output.first,
                 1,
                 "f32",
-                (uint64_t)(output.second)),
+                0),
         });
     }
 
@@ -101,7 +103,7 @@ void allreduce(
                                       device_id,
                                       master_addr,
                                       master_port,
-                                      copy_tensors);
+                                      cuda_stream);
 
     std::cerr << "backend init OK" << std::endl;
 
@@ -112,24 +114,39 @@ void allreduce(
     }
     int ret = backend.register_tensors(
         "model-test", register_tensors, autotune_service_addr, autotune_service_port, copy_tensors);
+    std::cerr << "backend.register_tensors ret=" << ret
+        << std::endl;
     EXPECT_EQ(ret, 0);
+
+    std::atomic<int> allreduce_count(0);
 
     for (int i = 0; i < io_tensors.size(); i++)
     {
         auto io = io_tensors[i];
         void* output_ptr = io[1].ptr();
+        allreduce_count++;
         backend.allreduce(io[0], io[1], 0, allreduce_callback,
                           new AllreduceCallbackContext{
-                              [output_ptr, cuda_stream, device_id]()
+                              [output_ptr, cuda_stream, device_id, &allreduce_count]()
                               {
+                                  std::cerr << "[" << device_id << "] callback"
+                                    << std::endl;
                                   CUDACHECK(cudaSetDevice(device_id));
 
                                   float result;
                                   CUDACHECK(cudaMemcpy(&result, output_ptr, sizeof(result), cudaMemcpyDeviceToHost));
 
                                   EXPECT_EQ(result, 3.5);
+                                  allreduce_count--;
                               }});
     }
+
+    while (allreduce_count > 0) {
+        std::cerr << "allreduce_count=" << allreduce_count << std::endl;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        std::this_thread::yield();
+    }
+    std::cerr << "[" << device_id << "] task done" << std::endl;
 }
 
 TEST(BaguaKaiBackend, EndToEnd)
@@ -171,11 +188,11 @@ TEST(BaguaKaiBackend, EndToEnd)
             {
                 worker.join();
             }
-
             exit(EXIT_SUCCESS);
         }
     }
 
-    // wait child
-    wait(nullptr);
+    for (int child_pid : child_pids) {
+        wait(&child_pid);
+    }
 }

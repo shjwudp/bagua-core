@@ -3,7 +3,7 @@ use tokio::runtime::Runtime;
 
 use bagua_core_internal::{
     communicators::{BaguaCommOpConfig, BaguaSingleCommunicator},
-    cuda_utils::cuda_memcpy_D2D_async,
+    cuda_utils::{cuda_memcpy_D2D_async, cuda_set_device},
     datatypes::{BaguaBucket, BaguaTensor, BaguaTensorDtype},
     resource_pool::{CudaMemory, CUDA_DEVICE_MEMORY_POOL},
     telemetry::{BaguaCommCoreTelemetry, RegisterTensorsRequest, TensorDeclaration},
@@ -147,6 +147,9 @@ impl BaguaSingleBackendForKAI {
 
     pub fn register_ordered_buckets(&mut self, mut buckets: Vec<BaguaBucket>, copy_buckets: bool) {
         if copy_buckets {
+            unsafe {
+                cuda_set_device(self.device_id as u64);
+            }
             let total_bytes = (&buckets).iter().map(|b| b.bytes()).sum();
             self.tmpbuff = CUDA_DEVICE_MEMORY_POOL[self.device_id]
                 .try_pull(total_bytes)
@@ -248,10 +251,10 @@ impl BaguaSingleBackendForKAI {
                 })
                 .collect(),
         };
-        println!("req={:?}", req);
+        println!("rank={}, req={:?}", self.rank, req);
         let rsp = telemetry.register_tensors(req).unwrap();
         let mut buckets = Vec::new();
-        println!("buckets={:?}", rsp.recommended_hyperparameters.buckets);
+        println!("rank={}, buckets={:?}", self.rank, rsp.recommended_hyperparameters.buckets);
         self.inner_tensors.clear();
         for (i, td_bucket) in rsp.recommended_hyperparameters.buckets.iter().enumerate() {
             let mut tensors_ref = Vec::<&BaguaTensor>::new();
@@ -303,7 +306,6 @@ impl BaguaSingleBackendForKAI {
     ) {
         let comm_stream_ptr = self.comm.inner.stream_ptr;
 
-        println!("get inner_tensor={}", input_tensor.name());
         let inner_tensor = self
             .inner_tensors
             .get(&input_tensor.name())
